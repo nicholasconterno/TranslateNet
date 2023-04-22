@@ -3,13 +3,98 @@
   <head>
     <meta charset="utf-8">
     <title>Chat App</title>
+    <style>
+  .translated-message {
+    display: flex;
+    align-items: center;
+  }
+  .translated-message p {
+    margin-right: 10px;
+  }
+</style>
+    <style>
+  body {
+    font-family: Arial, sans-serif;
+    background-color: #f5f5f5;
+    padding: 20px;
+  }
+
+  h1 {
+    color: #2c3e50;
+  }
+
+  #message-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  input[type="text"],
+  select {
+    padding: 6px;
+    border-radius: 3px;
+    border: 1px solid #ccc;
+  }
+
+  button {
+    padding: 6px 10px;
+    background-color: #2c3e50;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+
+  button:hover {
+    background-color: #1a2533;
+  }
+
+  .play-button {
+    background-color: #3498db;
+  }
+
+  .play-button:hover {
+    background-color: #217dbb;
+  }
+
+  #messages,
+  #translated-messages {
+    background-color: white;
+    border-radius: 5px;
+    padding: 15px;
+    margin-top: 20px;
+    max-height: 400px;
+    overflow-y: scroll;
+  }
+
+  #translated-messages .translated-message {
+    display: flex;
+    align-items: flex-start;
+    gap: 5px;
+  }
+
+  #messages p,
+  #translated-messages p {
+    margin: 5px 0;
+  }
+
+  #messages strong,
+  #translated-messages strong {
+    font-weight: bold;
+  }
+</style>
+
+
   </head>
   <body>
     <h1>Chat App</h1>
+
     <div id="messages"></div>
     <form id="message-form" method="POST" onsubmit="return false;">
-      <button type="button" onclick="startListening()">Record</button>
-      <p id="transcript"></p>
+  <label for="username">Username:</label>
+  <input type="text" id="username" required>
+  <button type="button" onclick="startListening()">Record</button>
+  <p id="transcript"></p>
       <div>
         <label for="language-dropdown">Translate to:</label>
         <select id="language-dropdown" onchange="translateText()">
@@ -20,90 +105,139 @@
         </select>
       </div>
       <p id="translated-text"></p>
+      <div id="translated-messages"></div>
     </form>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
+    var messages = [];
       function sendMessage(message) {
-        $.ajax({
-          url: '/<session_id>/chat',
-          method: 'POST',
-          data: { message: message },
-          success: function(response) {
-            console.log(response);
-          },
-          error: function(error) {
-            console.log(error);
-          }
-        });
+  const username = $('#username').val();
+  $.ajax({
+    url: '/<session_id>/chat',
+    method: 'POST',
+    data: { message: message, username: username },
+    success: function(response) {
+      console.log(response);
+    },
+    error: function(error) {
+      console.log(error);
+    }
+  });
+}
+
+
+function getMessages() {
+  $.ajax({
+    url: '/<session_id>/get_messages',
+    method: 'GET',
+    success: function(response) {
+      console.log(response);
+      messages = response.messages;
+      var messagesDiv = $('#messages');
+      messagesDiv.empty();
+      for (var i = 0; i < messages.length; i++) {
+        var message = messages[i];
+        var usernameEndIndex = message.indexOf(':');
+        var username = message.substring(0, usernameEndIndex);
+        var messageText = message.substring(usernameEndIndex + 1);
+        var usernameStrong = $('<strong>').text(username+":");
+        var messageP = $('<p>').append(usernameStrong, messageText);
+        messagesDiv.append(messageP);
       }
+    },
+    error: function(error) {
+      console.log(error);
+    }
+  });
+}
 
-      function getMessages() {
-        $.ajax({
-          url: '/<session_id>/get_messages',
-          method: 'GET',
-          success: function(response) {
-            console.log(response);
-            var messages = response.messages;
-            var messagesDiv = $('#messages');
-            messagesDiv.empty();
-            for (var i = 0; i < messages.length; i++) {
-              var message = messages[i];
-              var messageP = $('<p>').text(message);
-              messagesDiv.append(messageP);
-            }
-          },
-          error: function(error) {
-            console.log(error);
-          }
-        });
+
+function refresh_messages() {
+  $.get('/<session_id>/get_messages', function(response) {
+    console.log(response);
+    var messages = response.messages;
+    var message_list = $('#message-list');
+    message_list.empty();
+    for (var i = 0; i < messages.length; i++) {
+      message_list.append($('<li>').text(messages[i]));
+    }
+  });
+}
+
+setInterval(refresh_messages, 5000);
+setInterval(getMessages, 11);
+setInterval(translateText, 5000);
+
+$(document).ready(function() {
+  setInterval(getMessages, 1000);
+});
+
+function startListening() {
+  const recognition = new webkitSpeechRecognition();
+  recognition.onresult = function(event) {
+    const transcript = event.results[0][0].transcript;
+    $('#transcript').text(transcript);
+    sendMessage(transcript);
+  };
+  recognition.start();
+}
+
+function playMessage(text, language) {
+  const msg = new SpeechSynthesisUtterance();
+  msg.text = text;
+  msg.lang = language;
+  window.speechSynthesis.speak(msg);
+}
+
+function translateText() {
+  const language = $('#language-dropdown').val();
+  const messagesDiv = $('#messages');
+  const messages = messagesDiv.find('p');
+  $('#translated-messages').empty(); // clear the translated messages with play buttons
+  const messageOrder = [];
+  messages.each(function(index) {
+    const username = $(this).find('strong').text();
+    const originalText = $(this).text().substring(username.length);
+    const url = `https://translation.googleapis.com/language/translate/v2?key=AIzaSyAySO6GFLG5yZavrDNKl4LEtzrGXyAi9yE&q=${originalText}&target=${language}`;
+    $.ajax({
+      url: url,
+      method: 'GET',
+      success: function(response) {
+        const translatedText = response.data.translations[0].translatedText;
+        messageOrder.push(index);
+        const translatedP = $('<p>').html(translatedText);
+      const playButton = $('<button>').text('Play').addClass('play-button');
+      const usernameStrong = $('<strong>').text(username);
+      const translatedMessageDiv = $('<div>').addClass('translated-message').append(usernameStrong, '&nbsp;', translatedP, playButton);
+      $('#translated-messages').append(translatedMessageDiv);
+        $('#translated-messages').append(translatedMessageDiv);
+        if (messageOrder.length === messages.length) {
+          const sortedTranslations = $('#translated-messages div').sort(function(a, b) {
+            return messageOrder[$(a).index()] - messageOrder[$(b).index()];
+          });
+          $('#translated-messages').html(sortedTranslations);
+        }
+      },
+      error: function(error) {
+        console.log(error);
       }
+    });
+  });
+}
 
-      function refresh_messages() {
-        $.get('/<session_id>/get_messages', function(response) {
-          console.log(response);
-          var messages = response.messages;
-          var message_list = $('#message-list');
-          message_list.empty();
-          for (var i = 0; i < messages.length; i++) {
-            message_list.append($('<li>').text(messages[i]));
-          }
-        });
-      }
 
-      setInterval(refresh_messages, 5000);
-      setInterval(getMessages, 5000);
+$('#translated-messages').on('click', '.play-button', function() {
+  const language = $('#language-dropdown').val();
+  const translatedText = $(this).closest('.translated-message').find('p').text();
+  playMessage(translatedText, language);
+});
 
-      $(document).ready(function() {
-        setInterval(getMessages, 1000);
-      });
 
-      function startListening() {
-        const recognition = new webkitSpeechRecognition();
-        recognition.onresult = function(event) {
-          const transcript = event.results[0][0].transcript;
-          $('#transcript').text(transcript);
-          sendMessage(transcript);
-        };
-        recognition.start();
-      }
 
-      function translateText() {
-        const language = $('#language-dropdown').val();
-        const text = $('#transcript').text();
-        const url = `https://translation.googleapis.com/language/translate/v2?key=AIzaSyDECzg8aODrrDHocCRiiS4czEaFRimteD0&q=${text}&target=${language}`;
-        $.ajax({
-          url: url,
-          method: 'GET',
-          success: function(response) {
-            const translatedText = response.data.translations[0].translatedText;
-            $('#translated-text').text(translatedText);
-          },
-          error: function(error) {
-            console.log(error);
-          }
-        });
-      }
+
+
+
     </script>
   </body>
 </html>
