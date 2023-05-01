@@ -91,6 +91,17 @@
 
     <div id="messages"></div>
     <form id="message-form" method="POST" onsubmit="return false;">
+      <div>
+  <label for="input-language-dropdown">Input language:</label>
+  <select id="input-language-dropdown">
+    <option value="" disabled selected>Select input language</option>
+    <option value="en">English</option>
+    <option value="es">Spanish</option>
+    <option value="fr">French</option>
+    <option value="de">German</option>
+  </select>
+</div>
+
   <label for="username">Username:</label>
   <input type="text" id="username" required>
   <button type="button" onclick="startListening()">Record</button>
@@ -98,6 +109,7 @@
       <div>
         <label for="language-dropdown">Translate to:</label>
         <select id="language-dropdown" onchange="translateText()">
+          <option value="" disabled selected>Select input language</option>
           <option value="en">English</option>
           <option value="es">Spanish</option>
           <option value="fr">French</option>
@@ -110,13 +122,16 @@
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
+    const session_id = "{{ session_id }}";
     var messages = [];
       function sendMessage(message) {
   const username = $('#username').val();
+  const inputLanguage = $('#input-language-dropdown').val();
   $.ajax({
-    url: '/<session_id>/chat',
+  url: `/${session_id}/chat`,
+
     method: 'POST',
-    data: { message: message, username: username },
+    data: { message: message, username: username, input_language: inputLanguage },
     success: function(response) {
       console.log(response);
     },
@@ -129,7 +144,7 @@
 
 function getMessages() {
   $.ajax({
-    url: '/<session_id>/get_messages',
+    url: `/${session_id}/get_messages`,
     method: 'GET',
     success: function(response) {
       console.log(response);
@@ -137,14 +152,18 @@ function getMessages() {
       var messagesDiv = $('#messages');
       messagesDiv.empty();
       for (var i = 0; i < messages.length; i++) {
-        var message = messages[i];
-        var usernameEndIndex = message.indexOf(':');
-        var username = message.substring(0, usernameEndIndex);
-        var messageText = message.substring(usernameEndIndex + 1);
-        var usernameStrong = $('<strong>').text(username+":");
-        var messageP = $('<p>').append(usernameStrong, messageText);
-        messagesDiv.append(messageP);
-      }
+      var message = messages[i];
+      var username = message.message.split(':')[0];
+      var messageText = message.message.split(':')[1].trim();
+
+      var usernameStrong = $('<strong>').text(username+":");
+      var messageP = $('<p>').append(usernameStrong, messageText);
+      messageP.attr('data-input-language', message.input_language); // Add this line
+      messagesDiv.append(messageP);
+    }
+
+      // Call translateText() after updating the messages
+
     },
     error: function(error) {
       console.log(error);
@@ -161,20 +180,29 @@ function refresh_messages() {
     message_list.empty();
     for (var i = 0; i < messages.length; i++) {
       message_list.append($('<li>').text(messages[i]));
+
     }
   });
 }
 
 setInterval(refresh_messages, 5000);
-setInterval(getMessages, 11);
-setInterval(translateText, 5000);
+setInterval(getMessages, 100);
 
 $(document).ready(function() {
   setInterval(getMessages, 1000);
 });
 
 function startListening() {
+  const inputLanguage = $('#input-language-dropdown').val();
+  const selectedLanguage = $('#language-dropdown').val();
+
+  if (!inputLanguage || !selectedLanguage) {
+    alert('Please select both input and translation languages before recording.');
+    return;
+  }
+
   const recognition = new webkitSpeechRecognition();
+  recognition.lang = inputLanguage;
   recognition.onresult = function(event) {
     const transcript = event.results[0][0].transcript;
     $('#transcript').text(transcript);
@@ -183,6 +211,8 @@ function startListening() {
   recognition.start();
 }
 
+setInterval(translateText, 2500);
+
 function playMessage(text, language) {
   const msg = new SpeechSynthesisUtterance();
   msg.text = text;
@@ -190,41 +220,45 @@ function playMessage(text, language) {
   window.speechSynthesis.speak(msg);
 }
 
-function translateText() {
-  const language = $('#language-dropdown').val();
+function translateText(language = $('#language-dropdown').val()) {
+  //const language = $('#language-dropdown').val();
   const messagesDiv = $('#messages');
   const messages = messagesDiv.find('p');
   $('#translated-messages').empty(); // clear the translated messages with play buttons
-  const messageOrder = [];
+
   messages.each(function(index) {
     const username = $(this).find('strong').text();
     const originalText = $(this).text().substring(username.length);
-    const url = `https://translation.googleapis.com/language/translate/v2?key=AIzaSyAySO6GFLG5yZavrDNKl4LEtzrGXyAi9yE&q=${originalText}&target=${language}`;
-    $.ajax({
-      url: url,
-      method: 'GET',
-      success: function(response) {
-        const translatedText = response.data.translations[0].translatedText;
-        messageOrder.push(index);
-        const translatedP = $('<p>').html(translatedText);
+    const inputLanguage = messages[index].dataset.inputLanguage || 'en';
+
+    if (inputLanguage === language) {
+      // If the source and target languages are the same, just copy the message without translation
+      const translatedP = $('<p>').html(originalText);
       const playButton = $('<button>').text('Play').addClass('play-button');
       const usernameStrong = $('<strong>').text(username);
       const translatedMessageDiv = $('<div>').addClass('translated-message').append(usernameStrong, '&nbsp;', translatedP, playButton);
       $('#translated-messages').append(translatedMessageDiv);
-        $('#translated-messages').append(translatedMessageDiv);
-        if (messageOrder.length === messages.length) {
-          const sortedTranslations = $('#translated-messages div').sort(function(a, b) {
-            return messageOrder[$(a).index()] - messageOrder[$(b).index()];
-          });
-          $('#translated-messages').html(sortedTranslations);
+    } else {
+      const url = `https://translation.googleapis.com/language/translate/v2?key=AIzaSyAySO6GFLG5yZavrDNKl4LEtzrGXyAi9yE&q=${originalText}&source=${inputLanguage}&target=${language}`;
+      $.ajax({
+        url: url,
+        method: 'GET',
+        success: function(response) {
+          const translatedText = response.data.translations[0].translatedText;
+          const translatedP = $('<p>').html(translatedText);
+          const playButton = $('<button>').text('Play').addClass('play-button');
+          const usernameStrong = $('<strong>').text(username);
+          const translatedMessageDiv = $('<div>').addClass('translated-message').append(usernameStrong, '&nbsp;', translatedP, playButton);
+          $('#translated-messages').append(translatedMessageDiv);
+        },
+        error: function(error) {
+          console.log(error);
         }
-      },
-      error: function(error) {
-        console.log(error);
-      }
-    });
+      });
+    }
   });
 }
+
 
 
 $('#translated-messages').on('click', '.play-button', function() {
@@ -232,7 +266,6 @@ $('#translated-messages').on('click', '.play-button', function() {
   const translatedText = $(this).closest('.translated-message').find('p').text();
   playMessage(translatedText, language);
 });
-
 
 
 
