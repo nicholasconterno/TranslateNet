@@ -37,27 +37,29 @@ def getcommand(session_id):
     return jsonify({'message': query})
 
 @app.route('/<session_id>/send', methods=['POST'])
-def send(session_id, message, username):
+def send(session_id, message, username, input_language):
     message_with_username = f"{username}: {message}"
+    message_data = {"message": message_with_username, "input_language": input_language}
     if session_id not in sessions:
         sessions[session_id] = []
-    sessions[session_id].append(message_with_username)
+    sessions[session_id].append(message_data)
     return jsonify({'message': message_with_username})
+
 
 
 @app.route('/<session_id>/get_messages')
 def get_messages(session_id):
     if session_id not in sessions:
         sessions[session_id] = []
-    return\
-        jsonify({'messages': sessions[session_id]})
+    return jsonify({'messages': sessions[session_id]})
 
 @app.route('/<session_id>/chat', methods=['POST'])
 def chat(session_id):
     print(session_id)
     message = request.form['message']
     username = request.form['username']
-    send(session_id, message, username)
+    input_language = request.form['input_language']
+    send(session_id, message, username, input_language)
     print('Received message:', message)
     with open(f'chat_log_{session_id}.txt', 'a') as f:
         f.write(username + ': ' + message + '\n')
