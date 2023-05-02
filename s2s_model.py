@@ -1,15 +1,94 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, redirect, url_for
+
 import speech_recognition as sr
 import logging
 import uuid
 app = Flask(__name__)
 # logging.getLogger().setLevel(logging.CRITICAL)
 sessions = {}
-
 @app.route('/')
-def index():
-    session_id = str(uuid.uuid4())
-    return render_template('index.html', session_id=session_id)
+def home():
+    return '''
+    <!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Join a Room</title>
+    <style>
+    body {
+        font-family: Arial, sans-serif;
+        background-color: #f5f5f5;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        margin: 0;
+    }
+
+    #join-form {
+        background-color: white;
+        padding: 30px;
+        border-radius: 5px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+
+    h1 {
+        color: #2c3e50;
+        margin-top: 0;
+        margin-bottom: 20px;
+    }
+
+    label {
+        display: block;
+        margin-bottom: 5px;
+    }
+
+    input[type="text"] {
+        padding: 6px;
+        border-radius: 3px;
+        border: 1px solid #ccc;
+        display: block;
+        width: 100%;
+        margin-bottom: 10px;
+    }
+
+    button {
+        padding: 6px 10px;
+        background-color: #2c3e50;
+        color: white;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+    }
+
+    button:hover {
+        background-color: #1a2533;
+    }
+</style>
+
+</head>
+<body>
+    <div id="join-form">
+        <h1>Join a Room</h1>
+        <form action="/join" method="post">
+            <label for="room_name">Enter room name:</label>
+            <input type="text" id="room_name" name="room_name" required>
+            <button type="submit">Join</button>
+        </form>
+    </div>
+</body>
+</html>
+
+    '''
+
+@app.route('/join', methods=['POST'])
+def join():
+    room_name = request.form['room_name']
+    return redirect(url_for('index', room_name=room_name))
+
+@app.route('/<room_name>')
+def index(room_name):
+    return render_template('index.html', room_name=room_name)
 
 @app.route('/<session_id>/takecommand')
 def takecommand(session_id):
@@ -68,4 +147,4 @@ def chat(session_id):
 
 
 if __name__ == '__main__':
-    app.run(host='10.197.8.235', port=5001, debug=True)
+    app.run(host='172.28.85.221', port=5001, debug=True)
