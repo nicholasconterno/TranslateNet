@@ -1,11 +1,11 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 
 import speech_recognition as sr
-import logging
-import uuid
 app = Flask(__name__)
 # logging.getLogger().setLevel(logging.CRITICAL)
 sessions = {}
+
+
 @app.route('/')
 def home():
     return '''
@@ -81,14 +81,17 @@ def home():
 
     '''
 
+
 @app.route('/join', methods=['POST'])
 def join():
     room_name = request.form['room_name']
     return redirect(url_for('index', room_name=room_name))
 
+
 @app.route('/<room_name>')
 def index(room_name):
     return render_template('index.html', room_name=room_name)
+
 
 @app.route('/<session_id>/takecommand')
 def takecommand(session_id):
@@ -96,7 +99,7 @@ def takecommand(session_id):
     with sr.Microphone() as source:
         print("listening.....")
         r.pause_threshold = 1
-        r.adjust_for_ambient_noise(source, duration = 1)
+        r.adjust_for_ambient_noise(source, duration=1)
         audio = r.listen(source)
 
     try:
@@ -105,8 +108,9 @@ def takecommand(session_id):
         print(f"user said {query}\n")
         return query
     except Exception as e:
-        print("say that again please.....")
+        print("say that again please....."+str(e))
         return "None"
+
 
 @app.route('/<session_id>/getcommand', methods=['POST'])
 def getcommand(session_id):
@@ -115,15 +119,16 @@ def getcommand(session_id):
         query = takecommand(session_id)
     return jsonify({'message': query})
 
+
 @app.route('/<session_id>/send', methods=['POST'])
 def send(session_id, message, username, input_language):
     message_with_username = f"{username}: {message}"
-    message_data = {"message": message_with_username, "input_language": input_language}
+    message_data = {"message": message_with_username,
+                    "input_language": input_language}
     if session_id not in sessions:
         sessions[session_id] = []
     sessions[session_id].append(message_data)
     return jsonify({'message': message_with_username})
-
 
 
 @app.route('/<session_id>/get_messages')
@@ -131,6 +136,7 @@ def get_messages(session_id):
     if session_id not in sessions:
         sessions[session_id] = []
     return jsonify({'messages': sessions[session_id]})
+
 
 @app.route('/<session_id>/chat', methods=['POST'])
 def chat(session_id):
@@ -142,9 +148,8 @@ def chat(session_id):
     print('Received message:', message)
     with open(f'chat_log_{session_id}.txt', 'a') as f:
         f.write(username + ': ' + message + '\n')
-
     return jsonify({'status': 'OK'})
 
 
 if __name__ == '__main__':
-    app.run(host='172.28.85.221', port=5001, debug=True)
+    app.run(host='0.0.0.0', port=80)
