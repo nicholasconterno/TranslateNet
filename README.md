@@ -95,8 +95,12 @@ The Makefile provides the following commands:
 
 All testing linting and downloading of requirements are done via the ci.yml file and are done automatically on push via github actions.
 
+## Use of LLM
+
+For this application we use Google Translate's API which today uses an LLM to perform translations, and is considered an LLM, outperforming more traditional models. We use this to perform the translations seen at the bottom of the applications.
+
 ## Flask Application
-The flask app we made can be seen in s2s_model.py and is integraded with index.html. The endpoints can all be seen there. This works with our docker image seamlessly, and is hosted on Azure. Hosting on azure also gives some added security allowing use of google chrome's microphone, which is an added bonus. The application uses google translate's LLM to translate phrases from text-to-text. 
+The flask app we made can be seen in s2s_model.py and is integrated with index.html. The endpoints can all be seen there. This works with our docker image seamlessly, and is hosted on Azure. Hosting on azure also gives some added security allowing use of google chrome's microphone, which is an added bonus. The application uses google translate's LLM to translate phrases from text-to-text. 
 
 
 ## Dockerhub
