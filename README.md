@@ -3,7 +3,8 @@
 https://translateflaskapp.azurewebsites.net/
 
 ### Video Demonstration
-[Demo](https://youtu.be/8OTeZyjd5Vg)
+
+[Demo](https://youtu.be/cDrriv4JM0E)
 
 ## Project Overview
 
