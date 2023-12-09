@@ -2,6 +2,9 @@
 
 https://translateflaskapp.azurewebsites.net/
 
+### Video Demonstration
+[Demo](https://youtu.be/8OTeZyjd5Vg)
+
 ## Project Overview
 
 This project is a Flask-based chat application that allows users to join chat rooms, send text and voice messages, and have messages automatically translated into their preferred language. It leverages Azure App Service for deployment and Docker for containerization.
